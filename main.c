@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -63,7 +64,9 @@ int main(int argc, char *argv[]) {
     }
 
 
-    fflush(stdout);
+
+
+    // fflush(stdout);
     
     // int kernel[9] = {
     //     0, 0, 0,
@@ -79,18 +82,37 @@ int main(int argc, char *argv[]) {
     };
 
     int kernel_size = 3;
-    int padding = 0;
+    int padding_size = 1;
+    int filling = 0;
 
-    int new_width;
-    int new_height;
+    // int new_widthh = (width - kernel_size + 2 * padding_size) + 1;
+    // int new_heighth = (height - kernel_size + 2 * padding_size) + 1;
 
-    unsigned char *result = convolution(img, width, height, channels, kernel, kernel_size, padding, &new_width, &new_height);
+    // int new_widthh = width + 2 * padding_size;
+    // int new_heighth = height + 2 * padding_size;
 
+    int new_width, new_height;
+
+    unsigned char *result; //= (unsigned char*)malloc(new_widthh * new_heighth * channels * sizeof(unsigned char));
+
+    // printf("%d\n", strcmp(operation, "-conv"));
+
+    if(strcmp(operation, "-conv") == 0){
+        printf("conv\n");
+        result = convolution(img, width, height, channels, kernel, kernel_size, padding_size, &new_width, &new_height);
+    }else if(strcmp(operation, "-padding") == 0){
+        printf("padding\n");
+        result = padding(img, width, height, channels, padding_size, filling, &new_width, &new_height);
+    }
+
+    
+
+    
 
     // stbi_write_png(path_output, new_width, new_height, channels, result, 100);
     stbi_write_jpg(path_output,new_width, new_height, channels, result, 100);
 
-    if(img){
+    if(result){
         printf("image writen\n");
     }
     

@@ -7,7 +7,7 @@
 
 /*TODO
     Convolution - completed
-    Padding
+    Padding - 
     Median filter
 	Gaussian filter
 	Edge detection
@@ -55,9 +55,9 @@ static void create_area(unsigned char *image, int width, int height, int channel
 
 
 unsigned char *convolution(unsigned char *image, int width, int height, int channels, 
-                int *kernel, int kernel_size, int padding, int *new_width_out, int *new_height_out) {
-    int new_width = (width - kernel_size + 2 * padding) + 1;
-    int new_height = (height - kernel_size + 2 * padding) + 1;
+                int *kernel, int kernel_size, int padding_size, int *new_width_out, int *new_height_out) {
+    int new_width = (width - kernel_size + 2 * padding_size) + 1;
+    int new_height = (height - kernel_size + 2 * padding_size) + 1;
     *new_width_out = new_width;
     *new_height_out = new_height;
     // int beg_x = padding;
@@ -74,8 +74,8 @@ unsigned char *convolution(unsigned char *image, int width, int height, int chan
     for (int y = 0; y < new_height; y++) {
         for (int x = 0; x < new_width; x++) {
             
-            int src_x = x + half - padding;
-            int src_y = y + half - padding;
+            int src_x = x + half - padding_size;
+            int src_y = y + half - padding_size;
 
             int result_idx = (y * new_width + x) * channels;
             
@@ -128,3 +128,4 @@ unsigned char *padding (unsigned char *image, int width, int height, int channel
 
     return result;
 }
+
