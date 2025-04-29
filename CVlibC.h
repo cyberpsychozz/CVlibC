@@ -89,43 +89,38 @@ unsigned char *convolution(unsigned char *image, int width, int height, int chan
     free(area);
     return result;
 }
+unsigned char *padding(unsigned char *image, int width, int height, int channels,
+    int padding_size, int filling, int *new_width_out, int *new_height_out) {
+    int orig_width = width;
+    int orig_height = height;
 
-unsigned char *padding (unsigned char *image, int width, int height, int channels, 
-    int padding_size, int filling, int *new_width_out, int *new_height_out){
-    
-        width += 2 * padding_size;
-    height += 2 * padding_size;
-    int new_width = width;
-    int new_height = height;
+    int new_width = orig_width + 2 * padding_size;
+    int new_height = orig_height + 2 * padding_size;
     *new_width_out = new_width;
     *new_height_out = new_height;
 
-    unsigned char *result = (unsigned char*)malloc(height * width * channels * sizeof(unsigned char));
-   
-    // int beg_img = padding_size
+    unsigned char *result = (unsigned char *)malloc(new_width * new_height * channels);
 
+    // Заполнение фоном
     for (int y = 0; y < new_height; y++) {
         for (int x = 0; x < new_width; x++) {
             int idx = (y * new_width + x) * channels;
             for (int c = 0; c < channels; c++) {
-                result[idx + c] = (unsigned char)filling;
+            result[idx + c] = (unsigned char)filling;
             }
         }
     }
 
-    
-    for (int y = padding_size; y < (new_height - padding_size); y++) {
-        for (int x = padding_size; x < (new_width - padding_size); x++) {
-            int orig_x = x - padding_size;
-            int orig_y = y - padding_size;
-            int orig_idx = (orig_y * width + orig_x) * channels;
-            int idx = (y * new_width + x) * channels;
+    // Копирование изображения
+    for (int y = 0; y < orig_height; y++) {
+        for (int x = 0; x < orig_width; x++) {
+            int orig_idx = (y * orig_width + x) * channels;
+            int idx = ((y + padding_size) * new_width + (x + padding_size)) * channels;
             for (int c = 0; c < channels; c++) {
-                result[idx + c] = image[orig_idx + c];
+            result[idx + c] = image[orig_idx + c];
             }
         }
     }
 
     return result;
 }
-
