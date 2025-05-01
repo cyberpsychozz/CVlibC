@@ -7,9 +7,10 @@
 
 /*TODO
     Convolution - completed
-    Padding - 
-    Median filter
-	Gaussian filter
+    Padding - Completed
+    Median filter - Completed
+	Gaussian filter(Function, that creates Gauss Kernel)
+
 	Edge detection
     smth else from Opencv
     Image resizing
@@ -17,19 +18,7 @@
 */
 
 // Функция для перемножения области изображения и ядра
-//Function for multyplying area of image with kernel
-static int conv_matrix_multiply(unsigned char *area, int *kernel, int size) {
-    int sum = 0;
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            sum += area[i * size + j] * kernel[i * size + j];
-        }
-    }
 
-    if (sum < 0) sum = 0;
-    if (sum > 255) sum = 255;
-    return sum;
-}
 
 // Функция для выделения области вокруг пикселя (x, y) для одного канала
 static void create_area(unsigned char *image, int width, int height, int channels,
@@ -53,42 +42,52 @@ static void create_area(unsigned char *image, int width, int height, int channel
     }
 }
 
-
-unsigned char *convolution(unsigned char *image, int width, int height, int channels, 
-                int *kernel, int kernel_size, int padding_size, int *new_width_out, int *new_height_out) {
-    int new_width = (width - kernel_size + 2 * padding_size) + 1;
-    int new_height = (height - kernel_size + 2 * padding_size) + 1;
-    *new_width_out = new_width;
-    *new_height_out = new_height;
-    // int beg_x = padding;
-    // int beg_y = padding;
-    // int end_x = beg_x + (width - kernel_size + 1);
-    // int end_y = beg_y + (height - kernel_size + 1);
-
-    unsigned char *result = (unsigned char*)malloc(new_height * new_width * channels * sizeof(unsigned char));
-
-    unsigned char *area = (unsigned char*)malloc(kernel_size * kernel_size * sizeof(unsigned char));
-
-    
-    int half = kernel_size / 2;
-    for (int y = 0; y < new_height; y++) {
-        for (int x = 0; x < new_width; x++) {
-            
-            int src_x = x + half - padding_size;
-            int src_y = y + half - padding_size;
-
-            int result_idx = (y * new_width + x) * channels;
-            
-            for (int c = 0; c < channels; c++) {
-                create_area(image, width, height, channels, src_x, src_y, c, kernel_size, area);
-                result[result_idx + c] = (unsigned char)conv_matrix_multiply(area, kernel, kernel_size);
-            }
+//Function for multyplying area of image with kernel
+static int conv_matrix_multiply(unsigned char *area, double *kernel, int size) {
+    double sum = 0.0;
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            sum += area[i * size + j] * kernel[i * size + j];
         }
     }
 
-    free(area);
-    return result;
+    if (sum < 0.0) sum = 0;
+    if (sum > 255.0) sum = 255;
+    return sum;
 }
+
+unsigned char *convolution(unsigned char *image, int width, int height, int channels, 
+    double *kernel, int kernel_size, int padding_size, int *new_width_out, int *new_height_out) {
+        int new_width = (width - kernel_size + 2 * padding_size) + 1;
+        int new_height = (height - kernel_size + 2 * padding_size) + 1;
+        *new_width_out = new_width;
+        *new_height_out = new_height;
+
+        unsigned char *result = (unsigned char*)malloc(new_height * new_width * channels * sizeof(unsigned char));
+
+        unsigned char *area = (unsigned char*)malloc(kernel_size * kernel_size * sizeof(unsigned char));
+
+
+        int half = kernel_size / 2;
+        for (int y = 0; y < new_height; y++) {
+            for (int x = 0; x < new_width; x++) {
+
+                int src_x = x + half - padding_size;
+                int src_y = y + half - padding_size;
+
+                int result_idx = (y * new_width + x) * channels;
+
+                for (int c = 0; c < channels; c++) {
+                    create_area(image, width, height, channels, src_x, src_y, c, kernel_size, area);
+                    result[result_idx + c] = (unsigned char)conv_matrix_multiply(area, kernel, kernel_size);
+                }
+            }
+        }
+
+        free(area);
+        return result;
+}
+
 unsigned char *padding(unsigned char *image, int width, int height, int channels,
     int padding_size, int filling, int *new_width_out, int *new_height_out) {
     int orig_width = width;
@@ -101,7 +100,7 @@ unsigned char *padding(unsigned char *image, int width, int height, int channels
 
     unsigned char *result = (unsigned char *)malloc(new_width * new_height * channels);
 
-    // Заполнение фоном
+    // 
     for (int y = 0; y < new_height; y++) {
         for (int x = 0; x < new_width; x++) {
             int idx = (y * new_width + x) * channels;
@@ -111,7 +110,7 @@ unsigned char *padding(unsigned char *image, int width, int height, int channels
         }
     }
 
-    // Копирование изображения
+    // image copying
     for (int y = 0; y < orig_height; y++) {
         for (int x = 0; x < orig_width; x++) {
             int orig_idx = (y * orig_width + x) * channels;
@@ -123,4 +122,74 @@ unsigned char *padding(unsigned char *image, int width, int height, int channels
     }
 
     return result;
+}
+
+int compare_uc(const void *a, const void *b){
+    unsigned char ua = *(const unsigned char*)a;
+    unsigned char ub = *(const unsigned char*)b;
+
+    return (ua > ub) - (ua < ub);
+}
+
+static int median_value(unsigned char *area, int size){
+    qsort(area, size, sizeof(unsigned char), compare_uc);
+
+    if (size % 2 == 0) {
+        int value = ((int)area[size / 2 - 1] + (int)area[size / 2]) / 2;
+        return value;
+    } else {
+        return (int)area[size / 2];
+    }
+}
+
+unsigned char *median_filter(unsigned char *image, int width, int height, int channels, int kernel_size, int padding_size, int *new_width_out, int *new_height_out){
+    
+    //New parameters of image width and height
+    int new_width = (width - kernel_size + 2 * padding_size) + 1;
+    int new_height = (height - kernel_size + 2 * padding_size) + 1;
+    *new_width_out = new_width;
+    *new_height_out = new_height;
+
+    unsigned char *result = (unsigned char*)malloc(new_height * new_width * channels * sizeof(unsigned char));
+
+    unsigned char *area = (unsigned char*)malloc(kernel_size * kernel_size * sizeof(unsigned char));
+
+    int half = kernel_size / 2;
+    for (int y = 0; y < new_height; y++) {
+        for (int x = 0; x < new_width; x++) {
+            
+            int src_x = x + half - padding_size;
+            int src_y = y + half - padding_size;
+
+            int result_idx = (y * new_width + x) * channels;
+            
+            for (int c = 0; c < channels; c++) {
+                create_area(image, width, height, channels, src_x, src_y, c, kernel_size, area);
+                result[result_idx + c] = (unsigned char)median_value(area, kernel_size * kernel_size);
+
+            }
+        }
+    }
+
+    free(area);
+    return result;
+}
+
+void generate_gaussian_kernel(double *kernel, int size, double sigma) {
+    int half = size / 2;
+    double sum = 0.0;
+
+    for (int y = -half; y <= half; y++) {
+        for (int x = -half; x <= half; x++) {
+            double exponent = -(x * x + y * y) / (2 * sigma * sigma);
+            double value = exp(exponent) / (2 * M_PI * sigma * sigma);
+            kernel[(y + half) * size + (x + half)] = value;
+            sum += value;
+        }
+    }
+
+    
+    for (int i = 0; i < size * size; i++) {
+        kernel[i] /= sum;
+    }
 }
