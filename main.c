@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
     int padding_size = 1;
     int filling = 0;
 
-    int new_width, new_height;
+    int new_width, new_height, new_channels;
 
     unsigned char *result; 
 
@@ -85,16 +85,21 @@ int main(int argc, char *argv[]) {
         printf("median\n");
         result = median_filter(img, width, height, channels, kernel_size, padding_size, &new_width, &new_height);
     }else if(strcmp(operation, "-gauss")==0){
-        double sigma = 9.0;
-        double *kernel1 = malloc(kernel_size * kernel_size * sizeof(double));
+        double sigma = 10.0;
+        double *kernel1 = (double*)generate_gaussian_kernel(kernel_size, sigma);
         printf("gauss\n");
-        generate_gaussian_kernel(kernel1, kernel_size,sigma);
         result = convolution(img, width, height, channels, kernel1, kernel_size, padding_size, &new_width, &new_height);
         free(kernel1);
+    }else if(strcmp(operation, "-canny") == 0){
+        result = Canny_Edge_detector(img, width, height, channels, padding_size, &new_width, &new_height, &new_channels);
+        // result = rgb_to_grayscale(img, width, height, channels, &new_width, &new_height, &new_channels);
+        // channels = 1;
+        // new_width = width;
+        // new_height = height;
     }
 
     // stbi_write_png(path_output, new_width, new_height, channels, result, 100);
-    stbi_write_jpg(path_output,new_width, new_height, channels, result, 100);
+    stbi_write_jpg(path_output,new_width, new_height, new_channels, result, 100);
 
     if(result){
         printf("image writen\n");
