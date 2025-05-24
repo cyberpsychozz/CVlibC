@@ -15,8 +15,16 @@ void print_menu() {
     printf("4 - Gaussian filter\n");
     printf("5 - Image embossing\n");
     printf("6 - Image sharpenning\n");
-    printf("7 - Canny edge detector\n");
+    printf("7 - Converting an image to grayscale\n");
+    printf("8 - Canny edge detector\n");
+    printf("9 - Affine transformation\n");
     printf("Your choice: ");
+}
+
+char *get_file_extension(const char *filename) {
+    char *dot = strrchr(filename, '.');
+    if (!dot || dot == filename) return "";
+    return dot + 1;
 }
 
 int main() {
@@ -27,6 +35,8 @@ int main() {
     int padding_size = 0;
     int fill_value = 0;
     double sigma = 1.0;
+    int affine_transform_type = 0;
+
     
     double kernel[9] = {
         1.0, 0.0, 0.0,
@@ -59,7 +69,7 @@ int main() {
     char choice1[1];
     printf("Do You want to pad image? Y/N\n");
     scanf("%s", choice1);
-    printf("pep");
+
     if(strcmp(choice1, "Y") == 0){
         printf("Enter padding size:\n");
         scanf("%d", &padding_size);
@@ -68,7 +78,7 @@ int main() {
 
 
 
-    // 4. Adittional parameters
+    // 5. Adittional parameters
     if (operation_choice == 1) {
         printf("Do You want to use your own kernel? Y/N\n");
         char choice[1];
@@ -97,8 +107,16 @@ int main() {
         printf("Enter sigma value for Gaussian filter (1.0 for example): ");
         scanf("%lf", &sigma);
     }
+    if (operation_choice == 9){
+        printf("What type of Affine transformation do you want:\n 1 - Scaling\n 2 - Rotating\n 3 - Translation\n 4 - Shearing\n");
+        scanf("%d", &affine_transform_type);
+        if(affine_transform_type > 4 || affine_transform_type == 0){
+            printf("Try again\n");
+            scanf("%d", &affine_transform_type);
+        }
+    }
 
-    // 5. Image processing
+    // 6. Image processing
     unsigned char *result = NULL;
     
 
@@ -136,13 +154,46 @@ int main() {
             result = Canny_Edge_detector(img, width, height, channels, padding_size, &new_width, &new_height, &new_channels, up_thres, low_thres);
             break;
         }
+        case 9:{
+            double cx = width / 2.0;
+            double cy = height / 2.0;
+            
+            if(affine_transform_type == 1){
+                 // 1. scaling ( 1.5x on  X and 0.8x on Y)
+                result = affine_transform(img, width, height, channels, 
+                    1.5, 0, 0, 0.8, 0, 0, &new_width, &new_height, affine_transform_type);
+            }else if(affine_transform_type == 2){
+                // 2. Rotation
+                double angle = 90.0 * M_PI / 180.0;
+                double cos_theta = cos(angle);
+                double sin_theta = sin(angle);
+                double tx = cx - cos_theta * cx + sin_theta * cy;
+                double ty = cy - sin_theta * cx - cos_theta * cy;
+
+                result = affine_transform(img, width, height, channels,
+                    cos_theta, -sin_theta, sin_theta, cos_theta, tx, ty, &new_width, &new_height, affine_transform_type);
+            }else if(affine_transform_type == 3){
+                // 3. Translation (100 pixels to right 100 pixels down)
+                result = affine_transform(img, width, height, channels, 
+                    1, 0, 0, 1, 100, 100, &new_width, &new_height, affine_transform_type);
+                
+            }else if(affine_transform_type == 4){
+                // 4. Shearing (X, Y)
+                result = affine_transform(img, width, height, channels,
+                    1, 0.5, 0.3, 1, 0, 0, &new_width, &new_height, affine_transform_type);
+            }
+        
+            
+
+            break;
+        }
         default:
             printf("Incorrect operation choice.\n");
             stbi_image_free(img);
             return 1;
     }
 
-    // 6. Results saving
+    // 7. Results saving
     printf("Enter output file name (with extension: .jpg, .png, .bmp): ");
     scanf("%s", output_path);
 
@@ -169,7 +220,7 @@ int main() {
     } else {
         fprintf(stderr, "Failed to save image.\n");
     }
-    // 7. Free
+    // 8. Free
     stbi_image_free(img);
     free(result);
 

@@ -3,7 +3,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h> 
+#include <ctype.h>
 
+/*
+ * CVlibC.h - Custom computer vision library in C
+ * 
+ * Implements basic image processing functions: convolution, median filtering,
+ * Gaussian blur, Canny edge detection, grayscale conversion, etc.
+ *
+ * Author: Bystrykh Nikita
+ * Date: May 2025
+ */
+
+// Predefined convolution kernels for various filters
 double Sobel_kernel_Y[9] = {
     1.0, 2.0, 1.0,
     0.0, 0.0, 0.0,
@@ -16,25 +28,32 @@ double Sobel_kernel_X[9] = {
     -1.0, 0.0, 1.0
 };
 
-/*TODO
-    Convolution - completed
-    Padding - Completed
-    Median filter - Completed
-	Gaussian filter(Function, that creates Gauss Kernel) - Completed
-    Canny Edge detection - completed
-    RGB to Gray - completed
+double Emboss_kernel[9] = {
+    1.0, 0.0, 0.0,
+    0.0,0.0, 0.0,
+    0.0, 0.0, -1.0
+};
 
+double Sharpen_kernel[9] = {
+    0.0, -1.0, 0.0,
+    1.0, 5.0, -1.0,
+    0.0, -1.0, 0.0
+};
 
-    smth else from Opencv
-    Image resizing
-    Binarisation
-    Threshold parameters in Canny filter
-    User friendly variant of main
-*/
+/*
+ * Compare function for quicksort.
+ */
+int compare_uc(const void *a, const void *b){
+    unsigned char ua = *(const unsigned char*)a;
+    unsigned char ub = *(const unsigned char*)b;
 
+    return (ua > ub) - (ua < ub);
+}
 
-
-// Функция для выделения области вокруг пикселя (x, y) для одного канала
+/*
+ * Extracts a region (kernel-sized window) around a pixel at (x, y) for a specific channel.
+ * Handles edge padding by filling with zeros if out-of-bounds.
+ */
 static void create_area(unsigned char *image, int width, int height, int channels,
     int x, int y, int channel, int kernel_size, unsigned char *area) {
     
@@ -56,7 +75,10 @@ static void create_area(unsigned char *image, int width, int height, int channel
     }
 }
 
-//Function for multyplying area of image with kernel
+/*
+ * Applies a convolution kernel to a local image area and returns the result.
+ * The output is clamped between 0 and 255.
+ */
 static int conv_matrix_multiply(unsigned char *area, double *kernel, int size) {
     double sum = 0.0;
     for (int i = 0; i < size; i++) {
@@ -70,6 +92,10 @@ static int conv_matrix_multiply(unsigned char *area, double *kernel, int size) {
     return sum;
 }
 
+/*
+ * Applies convolution to the entire image using a specified kernel.
+ * Supports optional zero padding around the edges.
+ */
 unsigned char *convolution(unsigned char *image, int width, int height, int channels, 
     double *kernel, int kernel_size, int padding_size, int *new_width_out, int *new_height_out) {
         int new_width = (width - kernel_size + 2 * padding_size) + 1;
@@ -102,6 +128,10 @@ unsigned char *convolution(unsigned char *image, int width, int height, int chan
         return result;
 }
 
+/*
+ * Adds padding around the image. The padding value can be customized.
+ * Used to preserve image size after convolution or filtering.
+ */
 unsigned char *padding(unsigned char *image, int width, int height, int channels,
     int padding_size, int filling, int *new_width_out, int *new_height_out) {
     int orig_width = width;
@@ -114,7 +144,6 @@ unsigned char *padding(unsigned char *image, int width, int height, int channels
 
     unsigned char *result = (unsigned char *)malloc(new_width * new_height * channels);
 
-    // 
     for (int y = 0; y < new_height; y++) {
         for (int x = 0; x < new_width; x++) {
             int idx = (y * new_width + x) * channels;
@@ -124,7 +153,6 @@ unsigned char *padding(unsigned char *image, int width, int height, int channels
         }
     }
 
-    // image copying
     for (int y = 0; y < orig_height; y++) {
         for (int x = 0; x < orig_width; x++) {
             int orig_idx = (y * orig_width + x) * channels;
@@ -138,13 +166,9 @@ unsigned char *padding(unsigned char *image, int width, int height, int channels
     return result;
 }
 
-int compare_uc(const void *a, const void *b){
-    unsigned char ua = *(const unsigned char*)a;
-    unsigned char ub = *(const unsigned char*)b;
-
-    return (ua > ub) - (ua < ub);
-}
-
+/*
+ * Calculates the median of a kernel-sized area (used in median filtering).
+ */
 static int median_value(unsigned char *area, int size){
     qsort(area, size, sizeof(unsigned char), compare_uc);
 
@@ -156,9 +180,11 @@ static int median_value(unsigned char *area, int size){
     }
 }
 
+/*
+ * Applies a median filter to the image. Useful for noise reduction.
+ */
 unsigned char *median_filter(unsigned char *image, int width, int height, int channels, int kernel_size, int padding_size, int *new_width_out, int *new_height_out){
     
-    //New parameters of image width and height
     int new_width = (width - kernel_size + 2 * padding_size) + 1;
     int new_height = (height - kernel_size + 2 * padding_size) + 1;
     *new_width_out = new_width;
@@ -189,6 +215,9 @@ unsigned char *median_filter(unsigned char *image, int width, int height, int ch
     return result;
 }
 
+/*
+ * Generates a 2D Gaussian kernel for smoothing and noise reduction.
+ */
 double *generate_gaussian_kernel(int size, double sigma) {
     
     double *kernel = (double*)malloc(size * size * sizeof(double));
@@ -213,7 +242,9 @@ double *generate_gaussian_kernel(int size, double sigma) {
     return kernel;
 }
 
-// Function turning 
+/*
+ * Converts an RGB image to grayscale using luminance weights.
+ */
 unsigned char* rgb_to_grayscale(unsigned char* image, int width, int height, int channels, int *new_width, int *new_height, int *new_channels) {
     *new_width = width;
     *new_height = height;
@@ -223,18 +254,26 @@ unsigned char* rgb_to_grayscale(unsigned char* image, int width, int height, int
     int gray_size = width * height;
     unsigned char* gray_image = (unsigned char*)malloc(gray_size * sizeof(unsigned char));
 
-    for (int i = 0; i < width * height; i++) {
-        int r = image[i * channels];
-        int g = image[i * channels + 1];
-        int b = image[i * channels + 2];
+    for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+        int idx = (y * width + x) * channels;
+        int gray_idx = y * width + x;
 
-        // Y = 0.299 * R + 0.587 * G + 0.114 * B
-        gray_image[i] = (unsigned char)(0.299 * r + 0.587 * g + 0.114 * b);
+        int r = image[idx];
+        int g = image[idx + 1];
+        int b = image[idx + 2];
+
+        gray_image[gray_idx] = (unsigned char)(0.299 * r + 0.587 * g + 0.114 * b);
+        }
     }
+
 
     return gray_image;
 }
 
+/*
+ * Direction offsets used for edge tracing (8-connected neighborhood).
+ */
 int d[16] = {
     1,  0,
     1,  1,
@@ -246,8 +285,9 @@ int d[16] = {
     1, -1
 };
 
-//Function for recursive following edge
-
+/*
+ * Recursively follows weak edges connected to strong edges in Canny edge detection.
+ */
 void edge_following(unsigned char *input, unsigned char *output, int width, int height, int x, int y){
    for(int i = 0; i < 16; i += 2){
        int nx = x + d[i];
@@ -264,30 +304,62 @@ void edge_following(unsigned char *input, unsigned char *output, int width, int 
    }
 }
 
+/*
+ * Performs bilinear interpolation for subpixel accuracy (used in non-maximum suppression).
+ */
+double bilinear_interpolate(unsigned char *image, int width, int height, int channels, double x, double y, int c) {
+    int x0 = (int)floor(x);
+    int y0 = (int)floor(y);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
 
+    if (x0 < 0 || x1 >= width || y0 < 0 || y1 >= height)
+        return 0;
 
-unsigned char *Canny_Edge_detector(unsigned char *image, int width, int height, int channels, int paddig_size, int *new_width_out, int *new_height_out, int *new_channels, double upper_threshold, double lower_threshold){
+    double dx = x - x0;
+    double dy = y - y0;
 
-    // Step 1: Turning image from RGB to Gray
-    int a,b;
-    unsigned char *gray = rgb_to_grayscale(image, width, height, channels, &a, &b, new_channels);
-    
+    double I00 = image[(y0 * width + x0) * channels + c];
+    double I10 = image[y0 * width + x1];
+    double I01 = image[y1 * width + x0];
+    double I11 = image[y1 * width + x1];
 
-    //Step 2: Applying 5x5 Gaussian kernel to the image to remove the noise
+    double I_top = I00 * (1 - dx) + I10 * dx;
+    double I_bottom = I01 * (1 - dx) + I11 * dx;
+
+    return I_top * (1 - dy) + I_bottom * dy;
+}
+
+/*
+ * Implements the full Canny edge detection pipeline:
+ * - Gaussian blur
+ * - Grayscale conversion
+ * - Gradient computation (Sobel)
+ * - Non-maximum suppression
+ * - Double thresholding
+ * - Edge tracking by hysteresis
+ */
+unsigned char *Canny_Edge_detector(unsigned char *image, int width, int height, int channels, int paddig_size, int *new_width_out, int *new_height_out, int *new_channels, double upper_threshold, double lower_threshold){    
+
+    //Step 1: Applying 5x5 Gaussian kernel to the image to remove the noise
     int kernel_size = 5;
-    double sigma = 2.0;
+    double sigma = 3.0;
     double *gaussian_kernel = generate_gaussian_kernel(kernel_size,sigma);
-    unsigned char *blurred = convolution(gray, width, height, 1, gaussian_kernel, kernel_size, paddig_size, new_width_out, new_height_out);
+    unsigned char *blurred = convolution(image, width, height, channels, gaussian_kernel, kernel_size, paddig_size, new_width_out, new_height_out);
     int new_width = *new_width_out; 
     int new_height = *new_height_out;
+
+    // Step 2: Turning image from RGB to Gray
+    int a,b;
+    unsigned char *gray = rgb_to_grayscale(blurred, width, height, channels, &a, &b, new_channels);
+    free(blurred);
 
     // Step 3: Finding intensity gradients(filtering with Sobel kernel)
     int neww;
     int newh;
-    unsigned char *Gx = convolution(blurred, new_width, new_height, 1, Sobel_kernel_X, 3, 1, &new_width, &new_height);
-    unsigned char *Gy = convolution (blurred, new_width, new_height, 1, Sobel_kernel_Y, 3, 1, &new_width, &new_height);
-    free(blurred);
-
+    unsigned char *Gx = convolution(gray, new_width, new_height, 1, Sobel_kernel_X, 3, 1, &new_width, &new_height);
+    unsigned char *Gy = convolution (gray, new_width, new_height, 1, Sobel_kernel_Y, 3, 1, &new_width, &new_height);
+    
     unsigned char *G = (unsigned char*)malloc(new_width * new_height * sizeof(unsigned char));
     double *direction = (double*)malloc(new_width * new_height * sizeof(double));
     
@@ -295,43 +367,34 @@ unsigned char *Canny_Edge_detector(unsigned char *image, int width, int height, 
         double gx = (double)Gx[i];
         double gy = (double)Gy[i];
         G[i] = (unsigned char)fmin(255, hypot(gx, gy));        
-        direction[i] = atan2(gx, gy);
+        direction[i] = atan2(gy, gx);
     }
     free(Gx);
     free(Gy);
 
-
     // Step 4: Nonmaximum Suppresion
-
     unsigned char *supressed = (unsigned char*)malloc(new_height * new_width * sizeof(unsigned char));
 
-
-    for(int y = 0; y < new_height - 1; y++){
-        for(int x = 0; x < new_width - 1; x++){
+    for(int y = 0; y < new_height -1; y++){
+        for(int x = 0; x < new_width -1; x++){
 
             int idx = y * new_width + x;
             double angle = direction[idx];
-
             unsigned char curr = G[idx];
-            unsigned char q = 0, r = 0;
-
 
             angle = fmod(angle + M_PI, M_PI);
             angle = angle * 180 / M_PI;
 
-            if ((angle >= 0 && angle < 22.5) || (angle >= 157.5 && angle <= 180)){
-                q = G[y * new_width + (x - 1)];
-                r = G[y * new_width + (x + 1)];
-            } else if(angle >= 22.5 && angle < 67.5){
-                q = G[(y + 1) * new_width + (x - 1)];
-                r = G[(y - 1) * new_width + (x + 1)];
-            } else if(angle >= 67.5 && angle < 112.5){
-                q = G[(y - 1) * new_width + x];
-                r = G[(y + 1) * new_width + x];
-            } else if(angle >= 112.5 && angle < 157.5){
-                q = G[(y - 1) * new_width + (x - 1)];
-                r = G[(y + 1) * new_width + (x + 1)];
-            }
+            double dx = cos(angle);
+            double dy = sin(angle);
+
+            double x1 = x + dx;
+            double y1 = y + dy;
+            double x2 = x - dx;
+            double y2 = y - dy;
+
+            double q = bilinear_interpolate (G, new_width, new_height, *new_channels, x1, y1, 0);
+            double r = bilinear_interpolate (G, new_width, new_height, *new_channels, x2, y2, 0);
 
             if(q <=curr && r <= curr){
                 supressed[idx] = curr;
@@ -359,8 +422,6 @@ unsigned char *Canny_Edge_detector(unsigned char *image, int width, int height, 
     //Step 6:Edge tracing by hysteresis
     unsigned char *result = (unsigned char*)calloc(new_width * new_height, sizeof(unsigned char));
 
-    // int d{8} = [0, 1, -1];
-
     for(int y = 0; y < new_height; y++){
         for(int x = 0; x < new_width; x++){
             if (supressed[y * new_width + x] == 255){
@@ -371,5 +432,78 @@ unsigned char *Canny_Edge_detector(unsigned char *image, int width, int height, 
     }
 
     free(supressed);
+    return result;
+}
+
+/*
+ * Computes the new image dimensions after an affine transformation.
+ */
+void compute_new_size_affine(int width, int height,
+                             double a, double b, double c, double d, double tx, double ty,
+                             int *new_width, int *new_height,
+                             double *min_x_out, double *min_y_out) {
+    double corners[4][2] = {
+        {0, 0},
+        {width, 0},
+        {0, height},
+        {width, height}
+    };
+
+    double min_x = 1e9, max_x = -1e9;
+    double min_y = 1e9, max_y = -1e9;
+
+    for (int i = 0; i < 4; i++) {
+        double x = corners[i][0];
+        double y = corners[i][1];
+
+        double tx_ = a * x + b * y + tx;
+        double ty_ = c * x + d * y + ty;
+
+        if (tx_ < min_x) min_x = tx_;
+        if (tx_ > max_x) max_x = tx_;
+        if (ty_ < min_y) min_y = ty_;
+        if (ty_ > max_y) max_y = ty_;
+    }
+
+    *new_width = (int)ceil(max_x - min_x);
+    *new_height = (int)ceil(max_y - min_y);
+    *min_x_out = min_x;
+    *min_y_out = min_y;
+}
+
+// Affine transformation matrix:
+// | a  b  tx |
+// | c  d  ty |
+
+/*
+ * Applies an affine transformation (e.g., rotation, scaling, translation) to the image.
+ * Uses bilinear interpolation for pixel value computation.
+ */
+unsigned char *affine_transform(unsigned char *img, int width, int height, int channels,
+                                double a, double b, double c, double d, double tx, double ty,
+                                int *new_width, int *new_height, int type) {
+
+    double min_x, min_y;
+    compute_new_size_affine(width, height, a, b, c, d, tx, ty, new_width, new_height, &min_x, &min_y);
+
+    unsigned char *result = (unsigned char*)malloc((*new_width) * (*new_height) * channels);
+    if (!result) return NULL;
+
+    for (int y = 0; y < *new_height; y++) {
+        for (int x = 0; x < *new_width; x++) {
+
+            double src_x = a * x + b * y + tx - min_x;
+            double src_y = c * x + d * y + ty - min_y;
+
+            for (int ch = 0; ch < channels; ch++) {
+                double val = bilinear_interpolate(img, width, height, channels, src_x, src_y, ch);
+                if (val < 0) val = 0;
+                if (val > 255) val = 255;
+
+                result[(y * (*new_width) + x) * channels + ch] = (unsigned char)val;
+            }
+        }
+    }
+
     return result;
 }

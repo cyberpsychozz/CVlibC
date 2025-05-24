@@ -68,8 +68,8 @@ int main(int argc, char *argv[]) {
     };
 
     int kernel_size = 3;
-    int padding_size = 1;
-    int filling = 0;
+    int padding_size = 0;
+    int filling = 128;
 
     int new_width, new_height, new_channels;
 
@@ -78,20 +78,26 @@ int main(int argc, char *argv[]) {
     if(strcmp(operation, "-conv") == 0){
         printf("conv\n");
         result = convolution(img, width, height, channels, kernel, kernel_size, padding_size, &new_width, &new_height);
+        new_channels = channels;
     }else if(strcmp(operation, "-padding") == 0){
+        int pad_size = 8;
         printf("padding\n");
-        result = padding(img, width, height, channels, padding_size, filling, &new_width, &new_height);
+        result = padding(img, width, height, channels, pad_size, filling, &new_width, &new_height);
+        new_channels = channels;
     }else if(strcmp(operation, "-median")==0){
         printf("median\n");
         result = median_filter(img, width, height, channels, kernel_size, padding_size, &new_width, &new_height);
+        new_channels = channels;
     }else if(strcmp(operation, "-gauss")==0){
-        double sigma = 10.0;
+        double sigma = 1.0;
         double *kernel1 = (double*)generate_gaussian_kernel(kernel_size, sigma);
         printf("gauss\n");
         result = convolution(img, width, height, channels, kernel1, kernel_size, padding_size, &new_width, &new_height);
         free(kernel1);
+        new_channels = channels;
     }else if(strcmp(operation, "-canny") == 0){
-        result = Canny_Edge_detector(img, width, height, channels, padding_size, &new_width, &new_height, &new_channels);
+        
+        result = Canny_Edge_detector(img, width, height, channels, padding_size, &new_width, &new_height, &new_channels, up_thres, low_thres);
         // result = rgb_to_grayscale(img, width, height, channels, &new_width, &new_height, &new_channels);
         // channels = 1;
         // new_width = width;
