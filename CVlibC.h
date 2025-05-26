@@ -355,8 +355,6 @@ unsigned char *Canny_Edge_detector(unsigned char *image, int width, int height, 
     free(blurred);
 
     // Step 3: Finding intensity gradients(filtering with Sobel kernel)
-    int neww;
-    int newh;
     unsigned char *Gx = convolution(gray, new_width, new_height, 1, Sobel_kernel_X, 3, 1, &new_width, &new_height);
     unsigned char *Gy = convolution (gray, new_width, new_height, 1, Sobel_kernel_Y, 3, 1, &new_width, &new_height);
     
@@ -471,39 +469,55 @@ void compute_new_size_affine(int width, int height,
     *min_y_out = min_y;
 }
 
-// Affine transformation matrix:
-// | a  b  tx |
-// | c  d  ty |
+// // Affine transformation matrix:
+// // | a  b  tx |
+// // | c  d  ty |
 
-/*
- * Applies an affine transformation (e.g., rotation, scaling, translation) to the image.
- * Uses bilinear interpolation for pixel value computation.
- */
+// /*
+//  * Applies an affine transformation (e.g., rotation, scaling, translation) to the image.
+//  * Uses bilinear interpolation for pixel value computation.
+//  */
 unsigned char *affine_transform(unsigned char *img, int width, int height, int channels,
                                 double a, double b, double c, double d, double tx, double ty,
                                 int *new_width, int *new_height, int type) {
-
+    
     double min_x, min_y;
     compute_new_size_affine(width, height, a, b, c, d, tx, ty, new_width, new_height, &min_x, &min_y);
+    
+    
 
     unsigned char *result = (unsigned char*)malloc((*new_width) * (*new_height) * channels);
     if (!result) return NULL;
 
+    double det = a * d - b * c;
+    if (fabs(det) < 1e-10) return NULL;  
+
+    double ia =  d / det;
+    double ib = -b / det;
+    double ic = -c / det;
+    double id =  a / det;
+    double itx = -(ia * tx + ib * ty);
+    double ity = -(ic * tx + id * ty);
+
     for (int y = 0; y < *new_height; y++) {
         for (int x = 0; x < *new_width; x++) {
 
-            double src_x = a * x + b * y + tx - min_x;
-            double src_y = c * x + d * y + ty - min_y;
+            double dst_x = x + min_x;
+            double dst_y = y + min_y;
+
+            double src_x = ia * dst_x + ib * dst_y + itx;
+            double src_y = ic * dst_x + id * dst_y + ity;
 
             for (int ch = 0; ch < channels; ch++) {
                 double val = bilinear_interpolate(img, width, height, channels, src_x, src_y, ch);
                 if (val < 0) val = 0;
                 if (val > 255) val = 255;
-
                 result[(y * (*new_width) + x) * channels + ch] = (unsigned char)val;
             }
         }
     }
 
     return result;
+
 }
+

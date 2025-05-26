@@ -6,7 +6,6 @@
 
 - `CVlibC.h` — the main library with image processing functions realization
 - `user_friendly_main.c` — the main library file containing image processing functions
-- `Makefile` *(опционально)* —фва для компиляции проекта (можно добавить)
 
 ## 🚀 Functions
 
